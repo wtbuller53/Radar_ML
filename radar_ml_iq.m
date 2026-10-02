@@ -8,6 +8,10 @@
 %               K = 33600, alternating iq-samples at ADC at 120 MHz;
 % output: tensor NxMxL iq data, where L = K/2 
 %
+Example usage:
+data = load('./emitter/100us_cw_0Mhz_270Mhz.mat');
+iq = radar_ml_iq(data.sensorTen);
+
 %}
 
 function iq = radar_ml_iq(data)
