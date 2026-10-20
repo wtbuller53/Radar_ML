@@ -12,7 +12,7 @@
 author: wtbuller@gmail.com
 example usage:
 % readNPY is from https://github.com/kwikteam/npy-matlab
-data = readNPY([radarml_home,'/UCLRESM/100us_cw_0Mhz_250Mhz.npy']);
+data = readNPY([radarml_home,'/UCLRESM/10us_hyp_10Mhz_275Mhz-265Mhz.npy']);
 iq = radar_ml_iq(data);
 
 contact: wtbuller@mtu.edu
@@ -25,5 +25,4 @@ function iq = radar_ml_iq(data)
 inphase = double(data(:,:,1:2:end-1));
 quadrature = double(data(:,:,2:2:end));
 iq = inphase + (1j*quadrature);
-
 
