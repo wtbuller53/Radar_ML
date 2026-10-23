@@ -1,25 +1,36 @@
+%%
+%{
+This script has two dependencies:
 
+The npy-matlab, https://github.com/kwikteam/npy-matlab
+
+The existence of a folder named './tempDatabase/' with subfolders 
+barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
+
+%}
+
+%%  Establish where to get the input data
 radarml_home = '/ws1/itar/WaveGen/RadarML/';
-dynamicRange_dB = 30;
-
 % The files of data collected by ARESTOR 
 arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
 
-% Spectrogram fft length and overlap
+% Spectrogram dynamic range, fft length and overlap
+dynamicRange_dB = 30;
 fft_length = 60;
 fft_overlap = 30;
 
 %{ 
-Image size - this is set to 227x227 for the pre-trained squeezenet
+Image size - this is set to 227x227 for the pre-trained SqueezeNet
 architecture. If using other architectures, then these may need to be
 adjusted.
 %}
 pixels_x = 227;
 pixels_y = 227;
 
+% frequency shift and additive noise parameters
 numberOfShifts = 7; % number of arbitrary frequency shift realizations
 numberOfNoiseLevels = 4; % number of arbitrary additive noise realizations
-min_SNR = 10;  % linear value (not deciBels)
+min_SNR = 10;  % linear value (not deciBels) where SNR is var(sig)/var(noise)
 
 for n = 1:length(arestor_file)
     data = readNPY([arestor_file(n).folder, '/',...
@@ -53,7 +64,6 @@ for n = 1:length(arestor_file)
             axis xy; axis square; axis off;
             Pmax = max(imsf(:));
             clim = ([Pmax-dynamicRange_dB, Pmax]);
-            %{
             % format the image for export and close figure
             fig = gcf();
             fig.Position(3:4) = [pixels_x pixels_y];
@@ -64,7 +74,6 @@ for n = 1:length(arestor_file)
                 num2str(length(sig)), '_snr_', ...
                 num2str(round(db(signal_amplitude/max(noise_level,1e-4)))), '.png' ];
             exportgraphics(fig,nufil,Units="pixels",Width=pixels_x,Height=pixels_y);
-            %}
             close(gcf);
         end
     end
