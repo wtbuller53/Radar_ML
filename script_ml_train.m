@@ -6,7 +6,6 @@ waveform_imds = imageDatastore('./tempDatabase/', ...
 [imdsTrain,imdsTest,imdsValidation] = splitEachLabel(waveform_imds,0.8,0.1);
 
 numClasses = 7;
-numResponses = 1;
 
 % This example, based on the Radar and Communications Waveform Classification 
 % Using Deep Learning from MATLAB, uses squeezenet
@@ -30,3 +29,13 @@ options = trainingOptions('sgdm', ...
 
 trainedNet = trainnet(imdsTrain,net,'crossentropy',options);
 
+scores = minibatchpredict(trainedNet,imdsTest);
+predicted = scores2label(scores,categories(imdsTest.Labels));
+
+figure
+confusionchart(imdsTest.Labels,predicted,'Normalization','column-normalized')
+axis square;
+titlestring = { ['Training set size: ', num2str(size(imdsTrain.Files))]; ...
+    ['Test set size: ', num2str(size(imdsTest.Files))]; ...
+    ['Number of waveform classes: ', num2str(numClasses) ] };
+title(titlestring);
