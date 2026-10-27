@@ -26,6 +26,7 @@ adjusted.
 %}
 pixels_x = 227;
 pixels_y = 227;
+im_mat = zeros(pixels_y,pixels_x,3);
 
 % frequency shift and additive noise parameters
 numberOfShifts = 7; % number of arbitrary frequency shift realizations
@@ -44,6 +45,8 @@ for n = 1:length(arestor_file)
     s1 = find(abs(iq)>H1,1,'last');
     sig0 = iq(s0:s1);
 
+    %% TODO: Estimate PDW features here
+    
     %% Loop with frequency shifts
     frequencyShifts = [0;rand(numberOfShifts,1)];
     additiveNoise = [0;rand(numberOfNoiseLevels,1)];
@@ -58,23 +61,22 @@ for n = 1:length(arestor_file)
             sig = sig_shift + ( sqrt(2)^(-1)*noise_level*...
                 (randn(length(sig0),1)+1i*randn(length(sig0),1)) );
 
-            sfsig = spectrogram(sig,fft_length,fft_overlap);
-            imsf = smoothdata2(db(sfsig),"movmedian");
-            imagesc(imsf);
+            sfsig = db(spectrogram(sig,fft_length,fft_overlap));
+            %imsf = smoothdata2(sfsig,"movmedian");
+            imsf = resample(sfsig,[pixels_y,pixels_x]);
             axis xy; axis square; axis off;
             Pmax = max(imsf(:));
-            clim = ([Pmax-dynamicRange_dB, Pmax]);
-            % format the image for export and close figure
-            fig = gcf();
-            fig.Position(3:4) = [pixels_x pixels_y];
+            imsf(imsf<(Pmax-dynamicRange_dB))=Pmax-dynamicRange_dB;
+            for n_rgb = 1:3
+                im_mat(:,:,n_rgb) = imsf;
+            end
             namod = modname(arestor_file(n).name);
             nufil = ['./tempDatabase/',namod,'/', arestor_file(n).name];
             nufil(end-3:end) = [];
             nufil = [nufil, '_shift_', num2str(shiftIndex),'_of_', ...
                 num2str(length(sig)), '_snr_', ...
                 num2str(round(db(signal_amplitude/max(noise_level,1e-4)))), '.png' ];
-            exportgraphics(fig,nufil,Units="pixels",Width=pixels_x,Height=pixels_y);
-            close(gcf);
+            imwrite(im_mat,nufil);
         end
     end
 end
