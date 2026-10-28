@@ -16,8 +16,8 @@ arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
 
 % Spectrogram dynamic range, fft length and overlap
 dynamicRange_dB = 30;
-fft_length = 60;
-fft_overlap = 30;
+fft_length = 128;
+fft_overlap = 64;
 
 %{ 
 Image size - this is set to 227x227 for the pre-trained SqueezeNet
