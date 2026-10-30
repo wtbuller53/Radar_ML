@@ -1,10 +1,14 @@
-%% Script to train classifier using image datastore
+%% Script to train and evaluate classifier using image datastore
+
+% identify the location of the datastore
 waveform_imds = imageDatastore('./tempDatabase/', ...
     'IncludeSubfolders',true, ...
     'LabelSource','foldernames');
 
+% split the data store for training, testing, and validation
 [imdsTrain,imdsTest,imdsValidation] = splitEachLabel(waveform_imds,0.8,0.1);
 
+% This is the number of modulation types
 numClasses = 7;
 
 % This example, based on the Radar and Communications Waveform Classification 
@@ -27,11 +31,14 @@ options = trainingOptions('sgdm', ...
     'ValidationData',imdsValidation,...
     'Metrics','accuracy');
 
+%% Training step
 trainedNet = trainnet(imdsTrain,net,'crossentropy',options);
 
+%% Testing
 scores = minibatchpredict(trainedNet,imdsTest);
 predicted = scores2label(scores,categories(imdsTest.Labels));
 
+%% Present confusion (or Confidence) matrix
 figure
 confusionchart(imdsTest.Labels,predicted,'Normalization','column-normalized')
 titlestring = { ['Training set size: ', num2str(size(imdsTrain.Files))]; ...

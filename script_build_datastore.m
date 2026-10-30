@@ -10,6 +10,8 @@ barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
 %}
 
 %%  Establish where to get the input data
+%% Script to create datastore from RadarML collected waveforms
+
 radarml_home = '/ws1/itar/WaveGen/RadarML/';
 % The files of data collected by ARESTOR
 arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
@@ -26,6 +28,8 @@ adjusted.
 %}
 pixels_x = 227;
 pixels_y = 227;
+
+%% This is if imwrite() is being used
 %imsf = uint8(zeros(pixels_y,pixels_x,3));
 
 % frequency shift and additive noise parameters
@@ -36,8 +40,10 @@ min_SNR = 10;  % linear value (not deciBels) where SNR is var(sig)/var(noise)
 for n = 1:length(arestor_file)
     data = readNPY([arestor_file(n).folder, '/',...
         arestor_file(n).name]);
+
     % Currently only using the first sample from the first ADC without
     % modification, or additive noise
+    % TODO: Use more of the collected signals
     iq = squeeze(radar_ml_iq(data(1,1,:)));
 
     %% add noise to signal prior to detection
@@ -66,6 +72,10 @@ for n = 1:length(arestor_file)
 
             sfsig = db(spectrogram(sig0,fft_length,fft_overlap));
             [imrow, imcol] = size(sfsig);
+            
+            % This is how one could implement using imwrite()
+            % This would be faster and more appropriate for single channel
+            % output.
             %{
             F = griddedInterpolant({1:imrow,1:imcol},sfsig);
             F.Method = "spline";
@@ -77,7 +87,9 @@ for n = 1:length(arestor_file)
             imsf(:,:,1) = uint8(F({linspace(1,imrow,pixels_x),linspace(1,imcol,pixels_y)}));
             imsf(:,:,2) = imsf(:,:,1);
             imsf(:,:,3) = imsf(:,:,1);
+            % Then one would use imwrite(imsf) to 'nufil' as below
             %}
+
             fig2exp = figure();
             imagesc(sfsig); colormap(fig2exp,gray);
             axis square; axis xy; axis off;
