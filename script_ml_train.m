@@ -34,7 +34,6 @@ predicted = scores2label(scores,categories(imdsTest.Labels));
 
 figure
 confusionchart(imdsTest.Labels,predicted,'Normalization','column-normalized')
-axis square;
 titlestring = { ['Training set size: ', num2str(size(imdsTrain.Files))]; ...
     ['Test set size: ', num2str(size(imdsTest.Files))]; ...
     ['Number of waveform classes: ', num2str(numClasses) ] };
