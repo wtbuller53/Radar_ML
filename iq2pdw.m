@@ -1,4 +1,4 @@
-%% function pdw = iq2pdw(signal, threshold, fsampling, channel_center)
+%% function pdw = iq2pdw(signal, threshold, fsampling, channel_center, bins)
 %{
 % Summary: generate a pdw from input I/Q signal
 % 
@@ -7,6 +7,7 @@
 % threshold: scalar value for detection
 % fsampling: scalar sampling frequency
 % channel_center: scalar channel frequency used for mixing
+% freq_bins: scalar number of frequency bins
 % 
 % Output:
 % pdw(N): structure with common pdw features (scalars) for N detections
@@ -20,47 +21,41 @@
 author: wtbuller@gmail.com
 %}
 
-function pdw = iq2pdw(signal, threshold, fsampling, channel_center)
+function pdw = iq2pdw(signal, threshold, fsampling, f_bias, freq_bins)
 
-buf_len = 2;
+if ~exist("threshold","var"), threshold = max(abs(signal))/4; end
+if ~exist("fsampling","var"), fsampling = 1; end
+if ~exist("f_bias","var"), f_bias = 0; end
+if ~exist("freq_bins","var"), freq_bins = 256; end 
+
+del_t = 1/fsampling;
+freq_resolution = fsampling/freq_bins;
+buf_len = 100;
 overlap = buf_len - 1;
-
 bufsignal = buffer(signal,buf_len,overlap);
+
 H1 = mean(abs(bufsignal)) > threshold;
 
 t_starts = find(diff(H1) > 0.5);
 t_stops = find(diff(H1) < -0.5);
 
-if exist("fsampling","var")
-    del_t = 1/fsampling;
-else
-    del_t = 1;
-end
-
-if exist("channel_center","var")
-    del_f = channel_center;
-else
-    del_f = 0;
-end
-
+t_stops(t_stops < t_starts(1)) = [];
+t_starts(t_starts > t_stops(end)) = [];
 
 if ~isempty(t_starts)
     for ndet = 1:length(t_starts)
         pdw(ndet) = init_pdw();
-        % Measure pulse width, bandwidh
+        pdw(ndet).amp = max(abs(signal));
+        % Measure pulse width, bandwidth
         pdw(ndet).toa = t_starts(ndet)*del_t;
-        endofpulse = t_stops(ndet) - t_starts(ndet);
-        if ~isempty(endofpulse)
-            pdw(ndet).pw = (endofpulse-t_starts(ndet))*del_t;
-        else
-            pdw(ndet).pw = (length(signal)-t_starts(ndet))*del_t;
-        end
-        Sf = abs(fft(signal));
-        f_threshold = sqrt(length(signal))*threshold;
-        pdw(ndet).bw = del_f*sum(Sf>f_threshold)/length(Sf);
-        f_min = find(Sf>threshold,1,"first");
-        f_max = find(Sf>threshold,1,"last");
-        pdw(ndet).fc = fsampling*(f_min+f_max)/(2*length(Sf));
+        pdw(ndet).pw = (t_stops(ndet)-t_starts(ndet))*del_t;
+        sig_detected = signal(t_starts(ndet):t_stops(ndet));
+        Sf = abs(fft(sig_detected,freq_bins));
+        f_threshold = sqrt(freq_bins)*threshold;
+        pdw(ndet).bw = freq_resolution*sum(Sf>f_threshold);
+        f_min = find(Sf>f_threshold,1,"first");
+        f_max = find(Sf>f_threshold,1,"last");
+        pdw(ndet).fc = freq_resolution*(f_min+f_max)/2 + f_bias;
     end
 end
 
@@ -74,9 +69,9 @@ function p = init_pdw()
     p.aoa = [];
     p.amp =[];
     p.pw = [];
-    p.fc = [];
     p.bw = [];
-
+    p.fc = [];
+    p.mod = [];
 end
 
 %{
@@ -100,7 +95,9 @@ sig = iq + ( sqrt(2)^(-1)*additional_noise_level*...
 shiftIndex = 12933;
 Sp0 = fft(sig);
 sig_shift = ifft([Sp0(shiftIndex+1:end);Sp0(1:shiftIndex)]);
-theta = max(abs(sig_shift))/2;
+% setting threshold to 3 sigma above the noise (assumes the first 200
+samples contain only noise
+theta = std(sig_shift(1:200))*3;
 fs = 3.84e9/32;
 pdw = iq2pdw(sig_shift,theta,fs);
 
