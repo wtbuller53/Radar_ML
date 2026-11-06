@@ -12,9 +12,13 @@ barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
 %%  Establish where to get the input data
 %% Script to create datastore from RadarML collected waveforms
 
+rng(1885);
+
 radarml_home = '/ws1/itar/WaveGen/RadarML/';
 % The files of data collected by ARESTOR
 arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
+sampling_frequency = 3.84e9/32;
+pdw_table = table();
 
 % Spectrogram dynamic range, fft length and overlap
 dynamicRange_dB = 30;
@@ -34,7 +38,7 @@ pixels_y = 227;
 
 % frequency shift and additive noise parameters
 numberOfShifts = 7; % number of arbitrary frequency shift realizations
-numberOfNoiseLevels = 4; % number of arbitrary additive noise realizations
+numberOfNoiseLevels = 9; % number of arbitrary additive noise realizations
 min_SNR = 10;  % linear value (not deciBels) where SNR is var(sig)/var(noise)
 
 for n = 1:length(arestor_file)
@@ -62,13 +66,10 @@ for n = 1:length(arestor_file)
             Sp0 = fft(sig);
             sig_shift = ifft([Sp0(shiftIndex+1:end);Sp0(1:shiftIndex)]);
             % Clip the data to where the signal is and form a smoothed spectrogram
-            H1 = max(abs(sig_shift))/2;
+            H1 = max(abs(sig_shift))*3/min_SNR;
             s0 = find(abs(sig_shift)>H1,1,'first');
             s1 = find(abs(sig_shift)>H1,1,'last');
             sig0 = sig_shift(s0:s1);
-            
-            % TODO: Estimate PDW features here
-            % pdws = iq2pdws(sig_shift,H1);
 
             sfsig = db(spectrogram(sig0,fft_length,fft_overlap));
             [imrow, imcol] = size(sfsig);
@@ -89,7 +90,7 @@ for n = 1:length(arestor_file)
             imsf(:,:,3) = imsf(:,:,1);
             % Then one would use imwrite(imsf) to 'nufil' as below
             %}
-
+            %{
             fig2exp = figure();
             imagesc(sfsig); colormap(fig2exp,gray);
             axis square; axis xy; axis off;
@@ -102,9 +103,21 @@ for n = 1:length(arestor_file)
                 num2str(round(db(signal_amplitude/max(additional_noise_level,1e-4)))), '.png' ];
             exportgraphics(fig2exp,nufil,Units="pixels",Width=227,Height=227);
             close(fig2exp);
+            %}
+            pdws = iq2pdw(sig_shift,H1,sampling_frequency);
+            for ip = 1:length(pdws)
+                rowarray = {nufil,pdws(ip).toa,pdws(ip).aoa,pdws(ip).amp, ...
+                    pdws(ip).pw,pdws(ip).bw,pdws(ip).fc,pdws(ip).mod };
+                pdw_table(end+1,:) = rowarray;
+            end
         end
     end
 end
+
+varnames = {'imagefile', 'toa', 'aoa', 'amp', 'pw', 'bw', 'fc', 'mod'};
+pdw_table.Properties.VariableNames = varnames;
+writetable(pdw_table,'DatastorePdws.csv');
+
 
 %% function y = modname(x)
 %{
