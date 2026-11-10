@@ -73,27 +73,6 @@ for n = 1:length(arestor_file)
 
             sfsig = db(spectrogram(sig0,fft_length,fft_overlap));
             [imrow, imcol] = size(sfsig);
-            
-            % This is how one could implement using imwrite()
-            % This would be faster and more appropriate for single channel
-            % output.
-            %{
-            F = griddedInterpolant({1:imrow,1:imcol},sfsig);
-            F.Method = "spline";
-            % crop the noise floor at the dynamic range
-            sfsig = sfsig - max(sfsig(:)) + dynamicRange_dB;
-            sfsig(sfsig<0) = 0;
-            % scale the channels to [0,1] for imwrite
-            sfsig = sfsig / max(sfsig(:));         
-            imsf(:,:,1) = uint8(F({linspace(1,imrow,pixels_x),linspace(1,imcol,pixels_y)}));
-            imsf(:,:,2) = imsf(:,:,1);
-            imsf(:,:,3) = imsf(:,:,1);
-            % Then one would use imwrite(imsf) to 'nufil' as below
-            %}
-            %{
-            fig2exp = figure();
-            imagesc(sfsig); colormap(fig2exp,gray);
-            axis square; axis xy; axis off;
 
             namod = modname(arestor_file(n).name);
             nufil = ['./tempDatabase/',namod,'/', arestor_file(n).name];
@@ -101,9 +80,14 @@ for n = 1:length(arestor_file)
             nufil = [nufil, '_shift_', num2str(shiftIndex),'_of_', ...
                 num2str(length(sig)), '_snr_', ...
                 num2str(round(db(signal_amplitude/max(additional_noise_level,1e-4)))), '.png' ];
+
+            %% display and export the figure
+            fig2exp = figure();
+            imagesc(sfsig); colormap(fig2exp,gray);
+            axis square; axis xy; axis off;
             exportgraphics(fig2exp,nufil,Units="pixels",Width=227,Height=227);
             close(fig2exp);
-            %}
+
             pdws = iq2pdw(sig_shift,H1,sampling_frequency);
             for ip = 1:length(pdws)
                 rowarray = {nufil,pdws(ip).toa,pdws(ip).aoa,pdws(ip).amp, ...
@@ -137,3 +121,21 @@ while isempty(y)
     end
 end
 end
+
+%%
+% This is how one could implement using imwrite()
+% This would be faster and more appropriate for single channel
+% output.
+%{
+            F = griddedInterpolant({1:imrow,1:imcol},sfsig);
+            F.Method = "spline";
+            % crop the noise floor at the dynamic range
+            sfsig = sfsig - max(sfsig(:)) + dynamicRange_dB;
+            sfsig(sfsig<0) = 0;
+            % scale the channels to [0,1] for imwrite
+            sfsig = sfsig / max(sfsig(:));         
+            imsf(:,:,1) = uint8(F({linspace(1,imrow,pixels_x),linspace(1,imcol,pixels_y)}));
+            imsf(:,:,2) = imsf(:,:,1);
+            imsf(:,:,3) = imsf(:,:,1);
+            % Then one would use imwrite(imsf) to 'nufil' as below
+%}
