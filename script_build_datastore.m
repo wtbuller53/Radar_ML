@@ -1,12 +1,9 @@
 %%
 %{
 This script has two dependencies:
-
-The npy-matlab, https://github.com/kwikteam/npy-matlab
-
-The existence of a folder named './tempDatabase/' with subfolders 
+1. The npy-matlab, https://github.com/kwikteam/npy-matlab
+2. The existence of a folder named './tempDatabase/' with subfolders 
 barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
-
 %}
 
 %%  Establish where to get the input data
