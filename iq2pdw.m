@@ -39,8 +39,13 @@ H1 = mean(abs(bufsignal)) > threshold;
 t_starts = find(diff(H1) > 0.5);
 t_stops = find(diff(H1) < -0.5);
 
+% elide pulses at edge
 t_stops(t_stops < t_starts(1)) = [];
 t_starts(t_starts > t_stops(end)) = [];
+
+%eliminate short pulses
+t_starts((t_stops-t_starts) < 3) =[];
+t_stops((t_stops-t_starts) < 3) =[];
 
 if ~isempty(t_starts)
     for ndet = 1:length(t_starts)
