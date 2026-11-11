@@ -10,7 +10,6 @@ barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
 %% Script to create datastore from RadarML collected waveforms
 
 rng(1885);
-debug_noise = [];
 
 radarml_home = '/ws1/itar/WaveGen/RadarML/';
 
@@ -69,12 +68,8 @@ for n = 1:length(arestor_file)
             sig_shift = ifft([Sp0(shiftIndex+1:end);Sp0(1:shiftIndex)]);
             % Clip the data to where the signal is and form a smoothed spectrogram
             noise = std(abs(sig(1:100)));
-            debug_noise = [debug_noise,noise];
             H1 = N_sigma*noise; 
-            s0 = find(abs(sig_shift)>H1,1,'first');
-            s1 = find(abs(sig_shift)>H1,1,'last');
-            sig0 = sig_shift(s0:s1);
-
+            [pdws,sig0] = iq2pdw(sig_shift,H1,sampling_frequency);
             sfsig = db(spectrogram(sig0,fft_length,fft_overlap));
             [imrow, imcol] = size(sfsig);
 
@@ -92,7 +87,6 @@ for n = 1:length(arestor_file)
             exportgraphics(fig2exp,nufil,Units="pixels",Width=227,Height=227);
             close(fig2exp);
 
-            pdws = iq2pdw(sig_shift,H1,sampling_frequency);
             for ip = 1:length(pdws)
                 rowarray = {nufil,pdws(ip).toa,pdws(ip).aoa,pdws(ip).amp, ...
                     pdws(ip).pw,pdws(ip).bw,pdws(ip).fc,pdws(ip).mod };
