@@ -10,8 +10,13 @@ barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
 %% Script to create datastore from RadarML collected waveforms
 
 rng(1885);
+debug_noise = [];
 
 radarml_home = '/ws1/itar/WaveGen/RadarML/';
+
+% Detector threshold number of standard deviation
+N_sigma = 4;
+
 % The files of data collected by ARESTOR
 arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
 sampling_frequency = 3.84e9/32;
@@ -63,7 +68,9 @@ for n = 1:length(arestor_file)
             Sp0 = fft(sig);
             sig_shift = ifft([Sp0(shiftIndex+1:end);Sp0(1:shiftIndex)]);
             % Clip the data to where the signal is and form a smoothed spectrogram
-            H1 = max(abs(sig_shift))*3/min_SNR;
+            noise = std(abs(sig(1:100)));
+            debug_noise = [debug_noise,noise];
+            H1 = N_sigma*noise; 
             s0 = find(abs(sig_shift)>H1,1,'first');
             s1 = find(abs(sig_shift)>H1,1,'last');
             sig0 = sig_shift(s0:s1);
