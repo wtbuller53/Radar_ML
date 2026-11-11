@@ -12,13 +12,18 @@ barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
 rng(1885);
 debug_noise = [];
 
-radarml_home = '/ws1/itar/WaveGen/RadarML/';
-
 % Detector threshold number of standard deviation
 N_sigma = 4;
 
+if ispc
+    radarml_home = '\\nas1\data\itar\WaveGen\RadarML\';
+    arestor_file = dir([radarml_home,'\UCLRESM\*.npy']);
+else
+    radarml_home = '/ws1/itar/WaveGen/RadarML/';
+    arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
+end
+
 % The files of data collected by ARESTOR
-arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
 sampling_frequency = 3.84e9/32;
 pdw_table = table();
 
@@ -79,7 +84,11 @@ for n = 1:length(arestor_file)
             [imrow, imcol] = size(sfsig);
 
             namod = modname(arestor_file(n).name);
-            nufil = ['./tempDatabase/',namod,'/', arestor_file(n).name];
+            if ispc
+                nufil = ['.\tempDatabase\',namod,'\', arestor_file(n).name];
+            else
+                nufil = ['./tempDatabase/',namod,'/', arestor_file(n).name];
+            end
             nufil(end-3:end) = [];
             nufil = [nufil, '_shift_', num2str(shiftIndex),'_of_', ...
                 num2str(length(sig)), '_snr_', ...
