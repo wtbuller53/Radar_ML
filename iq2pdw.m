@@ -21,7 +21,7 @@
 author: wtbuller@gmail.com
 %}
 
-function pdw = iq2pdw(signal, threshold, fsampling, f_bias, freq_bins)
+function [pdw,sig_detected] = iq2pdw(signal, threshold, fsampling, f_bias, freq_bins)
 
 if ~exist("threshold","var"), threshold = max(abs(signal))/4; end
 if ~exist("fsampling","var"), fsampling = 1; end
