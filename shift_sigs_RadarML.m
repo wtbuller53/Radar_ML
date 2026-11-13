@@ -22,7 +22,7 @@ end
 
 % The Radar ML data always has some leading noise
 % Use that to replicate noise for the Fourier domain background
-noiselevel = std(real(x(1:200)))/20;
+noiselevel = std(real(x(1:200)));
 noisebg = fft((randn(size(x))+1i*randn(size(x)))*noiselevel);
 
 % Oversample Fourier domain using background noise
