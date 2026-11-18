@@ -12,7 +12,7 @@ barker/  cw/  fmcw/  fsk/  hyp/  nlfm/  quad/
 rng(1885);
 
 % Detector threshold number of standard deviation
-N_sigma = 4;
+N_sigma = 6;
 
 if ispc
     radarml_home = '\\nas1\data\itar\WaveGen\RadarML\';
@@ -22,12 +22,11 @@ else
     arestor_file = dir([radarml_home,'/UCLRESM/*.npy']);
 end
 
-% The files of data collected by ARESTOR
-sampling_frequency = 3.84e9/32;
+sampling_frequency = 1.2e8;
 pdw_table = table();
 
 % Spectrogram dynamic range, fft length and overlap
-dynamicRange_dB = 30;
+dynamicRange_dB = 60;
 fft_length = 128;
 fft_overlap = 64;
 
@@ -38,14 +37,13 @@ adjusted.
 %}
 pixels_x = 227;
 pixels_y = 227;
-
-%% This is if imwrite() is being used
-%imsf = uint8(zeros(pixels_y,pixels_x,3));
+pixels_z = 1;
 
 % frequency shift and additive noise parameters
 numberOfShifts = 7; % number of arbitrary frequency shift realizations
 numberOfNoiseLevels = 9; % number of arbitrary additive noise realizations
 min_SNR = 10;  % linear value (not deciBels) where SNR is var(sig)/var(noise)
+dbugNoise = [];
 
 for n = 1:length(arestor_file)
     data = readNPY([arestor_file(n).folder, '/',...
@@ -55,28 +53,27 @@ for n = 1:length(arestor_file)
     % modification, or additive noise
     % TODO: Use more of the collected signals
     iq = squeeze(radar_ml_iq(data(1,1,:)));
+    dbugNoise = [dbugNoise,std(iq(1:200))];
 
-    %% add noise to signal prior to detection
-    additiveNoise = [0;rand(numberOfNoiseLevels,1)];
-    for nois = 1:numberOfNoiseLevels
-        signal_amplitude = max(abs(iq));
-        additional_noise_level = additiveNoise(nois)*signal_amplitude/sqrt(min_SNR);
-        sig = iq + ( sqrt(2)^(-1)*additional_noise_level*...
-            (randn(length(iq),1)+1i*randn(length(iq),1)) );
-
+    for shif = 1:numberOfShifts
         %% Loop with frequency shifts
-        frequencyShifts = [0;rand(numberOfShifts,1)];
+        frequencyShift = round( (rand(1)-0.5)*length(iq)/4);
+        sig_shift = shift_sigs_RadarML(iq,frequencyShift);
 
-        for shif = 1:numberOfShifts
-            shiftIndex = round(frequencyShifts(shif)*(length(sig)-2));
-            Sp0 = fft(sig);
-            sig_shift = ifft([Sp0(shiftIndex+1:end);Sp0(1:shiftIndex)]);
-            % Clip the data to where the signal is and form a smoothed spectrogram
-            noise = std(abs(sig(1:100)));
-            H1 = N_sigma*noise; 
-            [pdws,sig0] = iq2pdw(sig_shift,H1,sampling_frequency);
-            sfsig = db(spectrogram(sig0,fft_length,fft_overlap));
-            [imrow, imcol] = size(sfsig);
+        %% add noise to signal
+        for nois = 1:numberOfNoiseLevels
+            signal_amplitude = max(abs(sig_shift));
+            noiseLevel = rand(1)*signal_amplitude/min_SNR;
+            additive_noise = noiseLevel * ...
+                (randn(length(sig_shift),1)+1i*randn(length(sig_shift),1)) / sqrt(2);
+            sig = sig_shift + additive_noise;
+            bg_sample = abs(sig(1:200));
+            threshold = mean(bg_sample) + N_sigma*std(bg_sample);
+
+            % Create the PDWs and clip the detection in sig0
+            [pdws,sig0] = iq2pdw(sig,threshold,sampling_frequency);
+            % Generate the spectrogram for the clipped detection
+            sfsig = spectrogram(sig0,fft_length,fft_overlap);
 
             namod = modname(arestor_file(n).name);
             if ispc
@@ -85,16 +82,35 @@ for n = 1:length(arestor_file)
                 nufil = ['./tempDatabase/',namod,'/', arestor_file(n).name];
             end
             nufil(end-3:end) = [];
-            nufil = [nufil, '_shift_', num2str(shiftIndex),'_of_', ...
-                num2str(length(sig)), '_snr_', ...
-                num2str(round(db(signal_amplitude/max(additional_noise_level,1e-4)))), '.png' ];
+            nufil = [nufil, num2str(n,'%04d'), '_', num2str(shif,'%03d'), ...
+                '_', num2str(nois,'%03d'), '.png' ];
 
+            %{
+            nufil = [nufil, '_shift_', num2str(frequencyShift),'_of_', ...
+                num2str(length(sig)), '_snr_', ...
+                num2str(round(db(signal_amplitude/max(noiseLevel,1e-4)))), '.png' ];
+%}
             %% display and export the figure
-            fig2exp = figure();
-            imagesc(sfsig); colormap(fig2exp,gray);
-            axis square; axis xy; axis off;
-            exportgraphics(fig2exp,nufil,Units="pixels",Width=227,Height=227);
-            close(fig2exp);
+            if pixels_z == 3
+                fig2exp = figure();
+                fig2exp.Position = [100, 100, 400, 400];
+                imagesc(db(sfsig)); colormap(fig2exp,gray);
+                ctop = clim;
+                clim([ctop(2)-dynamicRange_dB,ctop(2)]);
+                axis xy; axis off;
+                exportgraphics(fig2exp,nufil,Units="pixels",Width=227,Height=227);
+                close(fig2exp);
+            elseif pixels_z == 1
+                [imrow,imcol] = size(sfsig);
+                % crop the noise floor at the dynamic range
+                im_sfsig = db(sfsig) - max(db(sfsig(:))) + dynamicRange_dB;
+                im_sfsig(im_sfsig<0) = 0;
+                % scale the values between 0 and 1
+                F = griddedInterpolant({1:imrow,1:imcol},im_sfsig/max(im_sfsig(:)));
+                F.Method = "nearest";
+                imsf = F({linspace(1,imrow,pixels_x),linspace(1,imcol,pixels_y)});
+                imwrite(imsf,nufil);
+            end
 
             for ip = 1:length(pdws)
                 rowarray = {nufil,pdws(ip).toa,pdws(ip).aoa,pdws(ip).amp, ...
@@ -130,6 +146,9 @@ end
 end
 
 %%
+% This is if imwrite() is being used
+% imsf = uint8(zeros(pixels_y,pixels_x,3));
+
 % This is how one could implement using imwrite()
 % This would be faster and more appropriate for single channel
 % output.
