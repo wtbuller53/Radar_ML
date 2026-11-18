@@ -30,7 +30,7 @@ if ~exist("freq_bins","var"), freq_bins = 256; end
 
 del_t = 1/fsampling;
 freq_resolution = fsampling/freq_bins;
-buf_len = 100;
+buf_len = 10;
 overlap = buf_len - 1;
 bufsignal = buffer(signal,buf_len,overlap);
 
