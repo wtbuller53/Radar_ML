@@ -14,20 +14,13 @@
 wtbuller@gmail.com
 
 %}
-function s = shift_sigs_RadarML(x,f_shift,method, noise, nsig)
-
-if abs(f_shift) > length(x)
-    error("Requesting frequency shift outside of channel");
-end
-if ~exist('method','var')
-    method = 'simple';
-end
+function s = shift_sigs_RadarML(x,method, nsig)
 
 switch method
     case 'simple'
-        [min_shift,max_shift] = shift_limits(db(fft(x)), db(nsig*length(x)));
-        f_shift = max(f_shift,min_shift);
-        f_shift = min(f_shift,max_shift);
+        theta = mean([max(db(fft(x))),median(db(fft(x)))]);
+        [min_shift,max_shift] = shift_limits(db(fft(x)), theta);
+        f_shift = randi(max_shift-min_shift) + min_shift;
         S_nu = circshift(fft(x(:)),f_shift);
         s = ifft(S_nu);
     case 'oversample'
@@ -36,9 +29,7 @@ switch method
         %{
         y = [x(:); noise*(randn(length(x),1)+1i*(randn(length(x),1)))/sqrt(2)];
         S_f = fft(y(:));
-        [min_shift,max_shift] = shift_limits(db(fft(y)), db(nsig*length(y)));
-        f_shift = max(f_shift,min_shift);
-        f_shift = min(f_shift,max_shift);
+        f_shift = randi(max_shift-min_shift) + min_shift;
         S_shift = circshift(S_f,f_shift);
         S_nu = S_shift(1:length(x));
         s = ifft(S_nu);
