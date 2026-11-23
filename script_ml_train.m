@@ -13,7 +13,8 @@ numClasses = 7;
 
 % This example, based on the Radar and Communications Waveform Classification 
 % Using Deep Learning from MATLAB, uses squeezenet
-net = imagePretrainedNetwork("squeezenet","NumClasses",numClasses,"ClassNamesType","string");
+net = importdata("squeezenet_single.mat");
+% net = imagePretrainedNetwork("squeezenet","NumClasses",numClasses,"ClassNamesType","string");
 
 newDropoutLayer = dropoutLayer(0.6,'Name','new_dropout');
 net = replaceLayer(net,'drop9',newDropoutLayer);
@@ -23,7 +24,7 @@ net = setLearnRateFactor(net,"conv10/Bias",20);
 
 options = trainingOptions('adam', ...
     'MiniBatchSize',32, ...
-    'MaxEpochs',30, ...
+    'MaxEpochs',10, ...
     'InitialLearnRate',1e-4, ...
     'Shuffle','every-epoch', ...
     'Verbose',false, ...
@@ -33,7 +34,7 @@ options = trainingOptions('adam', ...
 
 %% Training step
 trainedNet = trainnet(imdsTrain,net,'crossentropy',options);
-netfile = ["squeeze_",string(date)];
+netfile = strcat("squeeze_",string(date));
 save(netfile,"trainedNet");
 
 %% Testing
