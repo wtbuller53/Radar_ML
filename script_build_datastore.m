@@ -29,6 +29,7 @@ pdw_table = table();
 dynamicRange_dB = 60;
 fft_length = 128;
 fft_overlap = 64;
+noise_samples = 200;
 
 %{
 Image size - this is set to 227x227 for the pre-trained SqueezeNet
@@ -53,12 +54,12 @@ for n = 1:length(arestor_file)
     % modification, or additive noise
     % TODO: Use more of the collected signals
     iq = squeeze(radar_ml_iq(data(1,1,:)));
-    dbugNoise = [dbugNoise,std(iq(1:200))];
+    noise = std(iq(1:noise_samples));
+    dbugNoise = [dbugNoise,noise];
 
     for shif = 1:numberOfShifts
         %% Loop with frequency shifts
-        frequencyShift = round( (rand(1)-0.5)*length(iq)/4);
-        sig_shift = shift_sigs_RadarML(iq,frequencyShift);
+        sig_shift = shift_sigs_RadarML(iq,'simple', N_sigma*noise);
 
         %% add noise to signal
         for nois = 1:numberOfNoiseLevels
@@ -67,7 +68,7 @@ for n = 1:length(arestor_file)
             additive_noise = noiseLevel * ...
                 (randn(length(sig_shift),1)+1i*randn(length(sig_shift),1)) / sqrt(2);
             sig = sig_shift + additive_noise;
-            bg_sample = abs(sig(1:200));
+            bg_sample = abs(sig(1:noise_samples));
             threshold = mean(bg_sample) + N_sigma*std(bg_sample);
 
             % Create the PDWs and clip the detection in sig0
@@ -85,11 +86,6 @@ for n = 1:length(arestor_file)
             nufil = [nufil, num2str(n,'%04d'), '_', num2str(shif,'%03d'), ...
                 '_', num2str(nois,'%03d'), '.png' ];
 
-            %{
-            nufil = [nufil, '_shift_', num2str(frequencyShift),'_of_', ...
-                num2str(length(sig)), '_snr_', ...
-                num2str(round(db(signal_amplitude/max(noiseLevel,1e-4)))), '.png' ];
-%}
             %% display and export the figure
             if pixels_z == 3
                 fig2exp = figure();
